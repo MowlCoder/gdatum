@@ -4,49 +4,42 @@ package api
 
 import (
 	"github.com/go-faster/errors"
-
-	"github.com/ogen-go/ogen/validate"
 )
 
-func (s *Pet) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.Status.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s PetStatus) Validate() error {
+func (s GetMultiplayersSummaryOrder) Validate() error {
 	switch s {
-	case "available":
+	case "asc":
 		return nil
-	case "pending":
-		return nil
-	case "sold":
+	case "desc":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s GetServerStatsByIDOKApplicationJSON) Validate() error {
+	alias := ([]GetServerStatsByIDOKItem)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	return nil
+}
+
+func (s GetServerStatsByIDOrder) Validate() error {
+	switch s {
+	case "asc":
+		return nil
+	case "desc":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s GetServersByMultiplayerOKApplicationJSON) Validate() error {
+	alias := ([]GetServersByMultiplayerOKItem)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	return nil
 }

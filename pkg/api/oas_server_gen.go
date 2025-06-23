@@ -8,30 +8,30 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
-	// AddPet implements addPet operation.
+	// GetMultiplayersSummary implements getMultiplayersSummary operation.
 	//
-	// Add a new pet to the store.
+	// Get multiplayers summary.
 	//
-	// POST /pet
-	AddPet(ctx context.Context, req *Pet) (*Pet, error)
-	// DeletePet implements deletePet operation.
+	// GET /multiplayers/summary
+	GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) ([]GetMultiplayersSummaryOKItem, error)
+	// GetServerByID implements getServerByID operation.
 	//
-	// Deletes a pet.
+	// Get server by ID.
 	//
-	// DELETE /pet/{petId}
-	DeletePet(ctx context.Context, params DeletePetParams) error
-	// GetPetById implements getPetById operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverID}
+	GetServerByID(ctx context.Context, params GetServerByIDParams) (GetServerByIDRes, error)
+	// GetServerStatsByID implements getServerStatsByID operation.
 	//
-	// Returns a single pet.
+	// Get server stats by ID.
 	//
-	// GET /pet/{petId}
-	GetPetById(ctx context.Context, params GetPetByIdParams) (GetPetByIdRes, error)
-	// UpdatePet implements updatePet operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
+	GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (GetServerStatsByIDRes, error)
+	// GetServersByMultiplayer implements getServersByMultiplayer operation.
 	//
-	// Updates a pet in the store.
+	// Get servers by multiplayer.
 	//
-	// POST /pet/{petId}
-	UpdatePet(ctx context.Context, params UpdatePetParams) error
+	// GET /multiplayer/{multiplayerName}/servers
+	GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (GetServersByMultiplayerRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

@@ -14,7 +14,7 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
-func decodeAddPetResponse(resp *http.Response) (res *Pet, _ error) {
+func decodeGetMultiplayersSummaryResponse(resp *http.Response) (res []GetMultiplayersSummaryOKItem, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
@@ -30,9 +30,17 @@ func decodeAddPetResponse(resp *http.Response) (res *Pet, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Pet
+			var response []GetMultiplayersSummaryOKItem
 			if err := func() error {
-				if err := response.Decode(d); err != nil {
+				response = make([]GetMultiplayersSummaryOKItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem GetMultiplayersSummaryOKItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					response = append(response, elem)
+					return nil
+				}); err != nil {
 					return err
 				}
 				if err := d.Skip(); err != io.EOF {
@@ -49,14 +57,14 @@ func decodeAddPetResponse(resp *http.Response) (res *Pet, _ error) {
 			}
 			// Validate response.
 			if err := func() error {
-				if err := response.Validate(); err != nil {
-					return err
+				if response == nil {
+					return errors.New("nil is invalid value")
 				}
 				return nil
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			return response, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
@@ -64,16 +72,7 @@ func decodeAddPetResponse(resp *http.Response) (res *Pet, _ error) {
 	return res, validate.UnexpectedStatusCode(resp.StatusCode)
 }
 
-func decodeDeletePetResponse(resp *http.Response) (res *DeletePetOK, _ error) {
-	switch resp.StatusCode {
-	case 200:
-		// Code 200.
-		return &DeletePetOK{}, nil
-	}
-	return res, validate.UnexpectedStatusCode(resp.StatusCode)
-}
-
-func decodeGetPetByIdResponse(resp *http.Response) (res GetPetByIdRes, _ error) {
+func decodeGetServerByIDResponse(resp *http.Response) (res GetServerByIDRes, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
@@ -89,7 +88,51 @@ func decodeGetPetByIdResponse(resp *http.Response) (res GetPetByIdRes, _ error) 
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Pet
+			var response GetServerByIDOK
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 404:
+		// Code 404.
+		return &GetServerByIDNotFound{}, nil
+	}
+	return res, validate.UnexpectedStatusCode(resp.StatusCode)
+}
+
+func decodeGetServerStatsByIDResponse(resp *http.Response) (res GetServerStatsByIDRes, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response GetServerStatsByIDOKApplicationJSON
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -121,16 +164,60 @@ func decodeGetPetByIdResponse(resp *http.Response) (res GetPetByIdRes, _ error) 
 		}
 	case 404:
 		// Code 404.
-		return &GetPetByIdNotFound{}, nil
+		return &GetServerStatsByIDNotFound{}, nil
 	}
 	return res, validate.UnexpectedStatusCode(resp.StatusCode)
 }
 
-func decodeUpdatePetResponse(resp *http.Response) (res *UpdatePetOK, _ error) {
+func decodeGetServersByMultiplayerResponse(resp *http.Response) (res GetServersByMultiplayerRes, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
-		return &UpdatePetOK{}, nil
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response GetServersByMultiplayerOKApplicationJSON
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 404:
+		// Code 404.
+		return &GetServersByMultiplayerNotFound{}, nil
 	}
 	return res, validate.UnexpectedStatusCode(resp.StatusCode)
 }

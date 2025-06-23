@@ -6,8 +6,8 @@ package api
 type OperationName = string
 
 const (
-	AddPetOperation     OperationName = "AddPet"
-	DeletePetOperation  OperationName = "DeletePet"
-	GetPetByIdOperation OperationName = "GetPetById"
-	UpdatePetOperation  OperationName = "UpdatePet"
+	GetMultiplayersSummaryOperation  OperationName = "GetMultiplayersSummary"
+	GetServerByIDOperation           OperationName = "GetServerByID"
+	GetServerStatsByIDOperation      OperationName = "GetServerStatsByID"
+	GetServersByMultiplayerOperation OperationName = "GetServersByMultiplayer"
 )

@@ -40,7 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	args := [1]string{}
+	args := [2]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -49,23 +49,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/pet"
+		case '/': // Prefix: "/multiplayer"
 
-			if l := len("/pet"); len(elem) >= l && elem[0:l] == "/pet" {
+			if l := len("/multiplayer"); len(elem) >= l && elem[0:l] == "/multiplayer" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				switch r.Method {
-				case "POST":
-					s.handleAddPetRequest([0]string{}, elemIsEscaped, w, r)
-				default:
-					s.notAllowed(w, r, "POST")
-				}
-
-				return
+				break
 			}
 			switch elem[0] {
 			case '/': // Prefix: "/"
@@ -76,32 +69,128 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					break
 				}
 
-				// Param: "petId"
-				// Leaf parameter, slashes are prohibited
+				// Param: "multiplayerName"
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
 					break
 				}
-				args[0] = elem
-				elem = ""
+				switch elem[0] {
+				case '/': // Prefix: "/server"
+
+					if l := len("/server"); len(elem) >= l && elem[0:l] == "/server" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "serverID"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[1] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "GET":
+								s.handleGetServerByIDRequest([2]string{
+									args[0],
+									args[1],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "GET")
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/stats"
+
+							if l := len("/stats"); len(elem) >= l && elem[0:l] == "/stats" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleGetServerStatsByIDRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET")
+								}
+
+								return
+							}
+
+						}
+
+					case 's': // Prefix: "s"
+
+						if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleGetServersByMultiplayerRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "GET")
+							}
+
+							return
+						}
+
+					}
+
+				}
+
+			case 's': // Prefix: "s/summary"
+
+				if l := len("s/summary"); len(elem) >= l && elem[0:l] == "s/summary" {
+					elem = elem[l:]
+				} else {
+					break
+				}
 
 				if len(elem) == 0 {
 					// Leaf node.
 					switch r.Method {
-					case "DELETE":
-						s.handleDeletePetRequest([1]string{
-							args[0],
-						}, elemIsEscaped, w, r)
 					case "GET":
-						s.handleGetPetByIdRequest([1]string{
-							args[0],
-						}, elemIsEscaped, w, r)
-					case "POST":
-						s.handleUpdatePetRequest([1]string{
-							args[0],
-						}, elemIsEscaped, w, r)
+						s.handleGetMultiplayersSummaryRequest([0]string{}, elemIsEscaped, w, r)
 					default:
-						s.notAllowed(w, r, "DELETE,GET,POST")
+						s.notAllowed(w, r, "GET")
 					}
 
 					return
@@ -121,7 +210,7 @@ type Route struct {
 	operationID string
 	pathPattern string
 	count       int
-	args        [1]string
+	args        [2]string
 }
 
 // Name returns ogen operation name.
@@ -189,27 +278,16 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/pet"
+		case '/': // Prefix: "/multiplayer"
 
-			if l := len("/pet"); len(elem) >= l && elem[0:l] == "/pet" {
+			if l := len("/multiplayer"); len(elem) >= l && elem[0:l] == "/multiplayer" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				switch method {
-				case "POST":
-					r.name = AddPetOperation
-					r.summary = "Add a new pet to the store"
-					r.operationID = "addPet"
-					r.pathPattern = "/pet"
-					r.args = args
-					r.count = 0
-					return r, true
-				default:
-					return
-				}
+				break
 			}
 			switch elem[0] {
 			case '/': // Prefix: "/"
@@ -220,41 +298,135 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					break
 				}
 
-				// Param: "petId"
-				// Leaf parameter, slashes are prohibited
+				// Param: "multiplayerName"
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
 					break
 				}
-				args[0] = elem
-				elem = ""
+				switch elem[0] {
+				case '/': // Prefix: "/server"
+
+					if l := len("/server"); len(elem) >= l && elem[0:l] == "/server" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "serverID"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[1] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							switch method {
+							case "GET":
+								r.name = GetServerByIDOperation
+								r.summary = "Get server by ID"
+								r.operationID = "getServerByID"
+								r.pathPattern = "/multiplayer/{multiplayerName}/server/{serverID}"
+								r.args = args
+								r.count = 2
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/stats"
+
+							if l := len("/stats"); len(elem) >= l && elem[0:l] == "/stats" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = GetServerStatsByIDOperation
+									r.summary = "Get server stats by ID"
+									r.operationID = "getServerStatsByID"
+									r.pathPattern = "/multiplayer/{multiplayerName}/server/{serverID}/stats"
+									r.args = args
+									r.count = 2
+									return r, true
+								default:
+									return
+								}
+							}
+
+						}
+
+					case 's': // Prefix: "s"
+
+						if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = GetServersByMultiplayerOperation
+								r.summary = "Get servers by multiplayer"
+								r.operationID = "getServersByMultiplayer"
+								r.pathPattern = "/multiplayer/{multiplayerName}/servers"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
+				}
+
+			case 's': // Prefix: "s/summary"
+
+				if l := len("s/summary"); len(elem) >= l && elem[0:l] == "s/summary" {
+					elem = elem[l:]
+				} else {
+					break
+				}
 
 				if len(elem) == 0 {
 					// Leaf node.
 					switch method {
-					case "DELETE":
-						r.name = DeletePetOperation
-						r.summary = "Deletes a pet"
-						r.operationID = "deletePet"
-						r.pathPattern = "/pet/{petId}"
-						r.args = args
-						r.count = 1
-						return r, true
 					case "GET":
-						r.name = GetPetByIdOperation
-						r.summary = "Find pet by ID"
-						r.operationID = "getPetById"
-						r.pathPattern = "/pet/{petId}"
+						r.name = GetMultiplayersSummaryOperation
+						r.summary = "Get multiplayers summary"
+						r.operationID = "getMultiplayersSummary"
+						r.pathPattern = "/multiplayers/summary"
 						r.args = args
-						r.count = 1
-						return r, true
-					case "POST":
-						r.name = UpdatePetOperation
-						r.summary = "Updates a pet in the store"
-						r.operationID = "updatePet"
-						r.pathPattern = "/pet/{petId}"
-						r.args = args
-						r.count = 1
+						r.count = 0
 						return r, true
 					default:
 						return

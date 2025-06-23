@@ -3,7 +3,10 @@
 
 package api
 
-import "github.com/EpicStep/gdatum/pkg/api"
+import (
+	"context"
+	"github.com/EpicStep/gdatum/pkg/api"
+)
 
 // Handlers ...
 type Handlers struct {
@@ -13,4 +16,8 @@ type Handlers struct {
 // New returns new Handlers.
 func New() *Handlers {
 	return &Handlers{}
+}
+
+func (h *Handlers) GetMultiplayersSummary(ctx context.Context, params api.GetMultiplayersSummaryParams) (api.GetMultiplayersSummaryOKItem, error) {
+	params.Order.Get()
 }

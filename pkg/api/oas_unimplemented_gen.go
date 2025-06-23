@@ -13,38 +13,38 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
-// AddPet implements addPet operation.
+// GetMultiplayersSummary implements getMultiplayersSummary operation.
 //
-// Add a new pet to the store.
+// Get multiplayers summary.
 //
-// POST /pet
-func (UnimplementedHandler) AddPet(ctx context.Context, req *Pet) (r *Pet, _ error) {
+// GET /multiplayers/summary
+func (UnimplementedHandler) GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) (r []GetMultiplayersSummaryOKItem, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// DeletePet implements deletePet operation.
+// GetServerByID implements getServerByID operation.
 //
-// Deletes a pet.
+// Get server by ID.
 //
-// DELETE /pet/{petId}
-func (UnimplementedHandler) DeletePet(ctx context.Context, params DeletePetParams) error {
-	return ht.ErrNotImplemented
-}
-
-// GetPetById implements getPetById operation.
-//
-// Returns a single pet.
-//
-// GET /pet/{petId}
-func (UnimplementedHandler) GetPetById(ctx context.Context, params GetPetByIdParams) (r GetPetByIdRes, _ error) {
+// GET /multiplayer/{multiplayerName}/server/{serverID}
+func (UnimplementedHandler) GetServerByID(ctx context.Context, params GetServerByIDParams) (r GetServerByIDRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// UpdatePet implements updatePet operation.
+// GetServerStatsByID implements getServerStatsByID operation.
 //
-// Updates a pet in the store.
+// Get server stats by ID.
 //
-// POST /pet/{petId}
-func (UnimplementedHandler) UpdatePet(ctx context.Context, params UpdatePetParams) error {
-	return ht.ErrNotImplemented
+// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
+func (UnimplementedHandler) GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (r GetServerStatsByIDRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetServersByMultiplayer implements getServersByMultiplayer operation.
+//
+// Get servers by multiplayer.
+//
+// GET /multiplayer/{multiplayerName}/servers
+func (UnimplementedHandler) GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (r GetServersByMultiplayerRes, _ error) {
+	return r, ht.ErrNotImplemented
 }

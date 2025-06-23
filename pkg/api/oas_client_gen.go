@@ -28,30 +28,30 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
-	// AddPet invokes addPet operation.
+	// GetMultiplayersSummary invokes getMultiplayersSummary operation.
 	//
-	// Add a new pet to the store.
+	// Get multiplayers summary.
 	//
-	// POST /pet
-	AddPet(ctx context.Context, request *Pet) (*Pet, error)
-	// DeletePet invokes deletePet operation.
+	// GET /multiplayers/summary
+	GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) ([]GetMultiplayersSummaryOKItem, error)
+	// GetServerByID invokes getServerByID operation.
 	//
-	// Deletes a pet.
+	// Get server by ID.
 	//
-	// DELETE /pet/{petId}
-	DeletePet(ctx context.Context, params DeletePetParams) error
-	// GetPetById invokes getPetById operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverID}
+	GetServerByID(ctx context.Context, params GetServerByIDParams) (GetServerByIDRes, error)
+	// GetServerStatsByID invokes getServerStatsByID operation.
 	//
-	// Returns a single pet.
+	// Get server stats by ID.
 	//
-	// GET /pet/{petId}
-	GetPetById(ctx context.Context, params GetPetByIdParams) (GetPetByIdRes, error)
-	// UpdatePet invokes updatePet operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
+	GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (GetServerStatsByIDRes, error)
+	// GetServersByMultiplayer invokes getServersByMultiplayer operation.
 	//
-	// Updates a pet in the store.
+	// Get servers by multiplayer.
 	//
-	// POST /pet/{petId}
-	UpdatePet(ctx context.Context, params UpdatePetParams) error
+	// GET /multiplayer/{multiplayerName}/servers
+	GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (GetServersByMultiplayerRes, error)
 }
 
 // Client implements OAS client.
@@ -97,21 +97,21 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
-// AddPet invokes addPet operation.
+// GetMultiplayersSummary invokes getMultiplayersSummary operation.
 //
-// Add a new pet to the store.
+// Get multiplayers summary.
 //
-// POST /pet
-func (c *Client) AddPet(ctx context.Context, request *Pet) (*Pet, error) {
-	res, err := c.sendAddPet(ctx, request)
+// GET /multiplayers/summary
+func (c *Client) GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) ([]GetMultiplayersSummaryOKItem, error) {
+	res, err := c.sendGetMultiplayersSummary(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendAddPet(ctx context.Context, request *Pet) (res *Pet, err error) {
+func (c *Client) sendGetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) (res []GetMultiplayersSummaryOKItem, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("addPet"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/pet"),
+		otelogen.OperationID("getMultiplayersSummary"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/multiplayers/summary"),
 	}
 
 	// Run stopwatch.
@@ -126,7 +126,7 @@ func (c *Client) sendAddPet(ctx context.Context, request *Pet) (res *Pet, err er
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, AddPetOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMultiplayersSummaryOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -144,104 +144,32 @@ func (c *Client) sendAddPet(ctx context.Context, request *Pet) (res *Pet, err er
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
-	pathParts[0] = "/pet"
+	pathParts[0] = "/multiplayers/summary"
 	uri.AddPathParts(u, pathParts[:]...)
 
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeAddPetRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeAddPetResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// DeletePet invokes deletePet operation.
-//
-// Deletes a pet.
-//
-// DELETE /pet/{petId}
-func (c *Client) DeletePet(ctx context.Context, params DeletePetParams) error {
-	_, err := c.sendDeletePet(ctx, params)
-	return err
-}
-
-func (c *Client) sendDeletePet(ctx context.Context, params DeletePetParams) (res *DeletePetOK, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("deletePet"),
-		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/pet/{petId}"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, DeletePetOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [2]string
-	pathParts[0] = "/pet/"
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
 	{
-		// Encode "petId" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "petId",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.PetId))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
+		// Encode "order" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "order",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
 		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Order.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
 		}
-		pathParts[1] = encoded
 	}
-	uri.AddPathParts(u, pathParts[:]...)
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "DELETE", u)
+	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
@@ -254,7 +182,7 @@ func (c *Client) sendDeletePet(ctx context.Context, params DeletePetParams) (res
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeDeletePetResponse(resp)
+	result, err := decodeGetMultiplayersSummaryResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -262,21 +190,21 @@ func (c *Client) sendDeletePet(ctx context.Context, params DeletePetParams) (res
 	return result, nil
 }
 
-// GetPetById invokes getPetById operation.
+// GetServerByID invokes getServerByID operation.
 //
-// Returns a single pet.
+// Get server by ID.
 //
-// GET /pet/{petId}
-func (c *Client) GetPetById(ctx context.Context, params GetPetByIdParams) (GetPetByIdRes, error) {
-	res, err := c.sendGetPetById(ctx, params)
+// GET /multiplayer/{multiplayerName}/server/{serverID}
+func (c *Client) GetServerByID(ctx context.Context, params GetServerByIDParams) (GetServerByIDRes, error) {
+	res, err := c.sendGetServerByID(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetPetById(ctx context.Context, params GetPetByIdParams) (res GetPetByIdRes, err error) {
+func (c *Client) sendGetServerByID(ctx context.Context, params GetServerByIDParams) (res GetServerByIDRes, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getPetById"),
+		otelogen.OperationID("getServerByID"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/pet/{petId}"),
+		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverID}"),
 	}
 
 	// Run stopwatch.
@@ -291,7 +219,7 @@ func (c *Client) sendGetPetById(ctx context.Context, params GetPetByIdParams) (r
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetPetByIdOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetServerByIDOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -308,17 +236,17 @@ func (c *Client) sendGetPetById(ctx context.Context, params GetPetByIdParams) (r
 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [2]string
-	pathParts[0] = "/pet/"
+	var pathParts [4]string
+	pathParts[0] = "/multiplayer/"
 	{
-		// Encode "petId" parameter.
+		// Encode "multiplayerName" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "petId",
+			Param:   "multiplayerName",
 			Style:   uri.PathStyleSimple,
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.PetId))
+			return e.EncodeValue(conv.StringToString(params.MultiplayerName))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -327,6 +255,25 @@ func (c *Client) sendGetPetById(ctx context.Context, params GetPetByIdParams) (r
 			return res, errors.Wrap(err, "encode path")
 		}
 		pathParts[1] = encoded
+	}
+	pathParts[2] = "/server/"
+	{
+		// Encode "serverID" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "serverID",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ServerID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
 	}
 	uri.AddPathParts(u, pathParts[:]...)
 
@@ -344,7 +291,7 @@ func (c *Client) sendGetPetById(ctx context.Context, params GetPetByIdParams) (r
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetPetByIdResponse(resp)
+	result, err := decodeGetServerByIDResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -352,21 +299,21 @@ func (c *Client) sendGetPetById(ctx context.Context, params GetPetByIdParams) (r
 	return result, nil
 }
 
-// UpdatePet invokes updatePet operation.
+// GetServerStatsByID invokes getServerStatsByID operation.
 //
-// Updates a pet in the store.
+// Get server stats by ID.
 //
-// POST /pet/{petId}
-func (c *Client) UpdatePet(ctx context.Context, params UpdatePetParams) error {
-	_, err := c.sendUpdatePet(ctx, params)
-	return err
+// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
+func (c *Client) GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (GetServerStatsByIDRes, error) {
+	res, err := c.sendGetServerStatsByID(ctx, params)
+	return res, err
 }
 
-func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res *UpdatePetOK, err error) {
+func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (res GetServerStatsByIDRes, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("updatePet"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/pet/{petId}"),
+		otelogen.OperationID("getServerStatsByID"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverID}/stats"),
 	}
 
 	// Run stopwatch.
@@ -381,7 +328,7 @@ func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, UpdatePetOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetServerStatsByIDOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -398,17 +345,17 @@ func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res
 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [2]string
-	pathParts[0] = "/pet/"
+	var pathParts [5]string
+	pathParts[0] = "/multiplayer/"
 	{
-		// Encode "petId" parameter.
+		// Encode "multiplayerName" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "petId",
+			Param:   "multiplayerName",
 			Style:   uri.PathStyleSimple,
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.PetId))
+			return e.EncodeValue(conv.StringToString(params.MultiplayerName))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -418,21 +365,41 @@ func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res
 		}
 		pathParts[1] = encoded
 	}
+	pathParts[2] = "/server/"
+	{
+		// Encode "serverID" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "serverID",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ServerID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/stats"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
 	{
-		// Encode "name" parameter.
+		// Encode "count" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "name",
+			Name:    "count",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Name.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
+			if val, ok := params.Count.Get(); ok {
+				return e.EncodeValue(conv.Int32ToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -440,15 +407,32 @@ func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res
 		}
 	}
 	{
-		// Encode "status" parameter.
+		// Encode "after" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "status",
+			Name:    "after",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Status.Get(); ok {
+			if val, ok := params.After.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "order" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "order",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Order.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
@@ -459,7 +443,7 @@ func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
+	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
@@ -472,7 +456,119 @@ func (c *Client) sendUpdatePet(ctx context.Context, params UpdatePetParams) (res
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeUpdatePetResponse(resp)
+	result, err := decodeGetServerStatsByIDResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetServersByMultiplayer invokes getServersByMultiplayer operation.
+//
+// Get servers by multiplayer.
+//
+// GET /multiplayer/{multiplayerName}/servers
+func (c *Client) GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (GetServersByMultiplayerRes, error) {
+	res, err := c.sendGetServersByMultiplayer(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (res GetServersByMultiplayerRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getServersByMultiplayer"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/servers"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetServersByMultiplayerOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/multiplayer/"
+	{
+		// Encode "multiplayerName" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "multiplayerName",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.MultiplayerName))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/servers"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "count" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "count",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Count.Get(); ok {
+				return e.EncodeValue(conv.Int32ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetServersByMultiplayerResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

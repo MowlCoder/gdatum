@@ -1,0 +1,72 @@
+version: "2"
+
+run:
+  go: '1.24'
+  timeout: 5m
+  allow-parallel-runners: true
+
+output:
+  formats:
+    tab:
+      path: stdout
+      colors: false
+  path-prefix: ./
+
+linters:
+  enable:
+    - bodyclose
+    - contextcheck
+    - errname
+    - errorlint
+    - goconst
+    - gocritic
+    - goheader
+    - interfacebloat
+    - lll
+    - nilerr
+    - noctx
+    - prealloc
+    - revive
+    - staticcheck
+    - unparam
+    - usestdlibvars
+    - wastedassign
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    goheader:
+      template: |-
+        Copyright {{ YEAR }} Stepan Rabotkin.
+        SPDX-License-Identifier: Apache-2.0.
+    lll:
+      line-length: 250
+    revive:
+      enable-all-rules: true
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: add-constant
+          disabled: true
+        - name: import-alias-naming
+          disabled: true
+        - name: cognitive-complexity
+          disabled: true
+        - name: function-length
+          disabled: true
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+
+formatters:
+  enable:
+    - goimports
+    - gofmt
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/EpicStep/gdatum

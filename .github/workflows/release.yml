@@ -54,7 +54,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create next tag
         run: |
-          ./hack/create-next-tag.sh ${{ github.event.inputs.bumpType }})
+          ./hack/create-next-tag.sh ${{ github.event.inputs.bumpType }}
       - name: Release
         uses: goreleaser/goreleaser-action@v6
         with:

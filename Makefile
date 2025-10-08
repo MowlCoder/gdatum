@@ -9,7 +9,7 @@ generate:
 
 build:
 	GOOS=linux go build -o gdatum cmd/app/main.go
-	docker build --build-arg IMG_TAG=debug-nonroot -f Containerfile -t $(IMG_NAME):$(IMG_VERSION) .
+	docker build --build-arg IMG_TAG=debug-nonroot --build-arg TARGETPLATFORM=. -f Containerfile -t $(IMG_NAME):$(IMG_VERSION) .
 	rm -rf gdatum
 
 test:

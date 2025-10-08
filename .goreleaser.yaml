@@ -5,7 +5,6 @@ project_name: gdatum
 env:
   - IMAGE_NAME={{ if index .Env "IMAGE_NAME"  }}{{ .Env.IMAGE_NAME }}{{ else }}ghcr.io/epicstep/gdatum{{ end }}
   - MODULE_NAME=github.com/EpicStep/gdatum
-  - IMG_NAME=ghcr.io/epicstep/gdatum
 
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
@@ -58,9 +57,11 @@ checksum:
 
 dockers_v2:
   - dockerfile: Containerfile
+    images:
+      - "{{ .Env.IMAGE_NAME }}"
     tags:
-      - "{{ .Env.IMG_NAME }}:v{{ .Version }}"
-      - "{{ .Env.IMG_NAME }}:latest"
+      - "v{{ .Version }}"
+      - "latest"
     platforms:
       - linux/amd64
       - linux/arm64
@@ -73,10 +74,12 @@ dockers_v2:
       "org.opencontainers.image.source": "{{.GitURL}}"
   - id: gdatum-debug
     dockerfile: Containerfile
+    images:
+      - "{{ .Env.IMAGE_NAME }}"
     build_args:
       IMG_TAG: debug-nonroot
     tags:
-      - "{{ .Env.IMG_NAME }}:v{{ .Version }}-debug"
+      - "v{{ .Version }}-debug"
     platforms:
       - linux/amd64
       - linux/arm64

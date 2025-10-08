@@ -1,7 +1,9 @@
 ARG IMG_TAG=nonroot
+
 FROM gcr.io/distroless/static-debian12:${IMG_TAG}
 
-COPY --chown=nonroot:nonroot /gdatum ./gdatum
+ARG TARGETPLATFORM
+COPY --chown=nonroot:nonroot ${TARGETPLATFORM}/gdatum ./gdatum
 
 EXPOSE 8080 8081
 

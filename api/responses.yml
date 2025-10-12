@@ -1,6 +1,32 @@
-openapi: 3.0.2
 components:
   responses:
-    GetMultiplayersSummaryOK:
-
-
+    ListMultiplayerSummariesOK:
+      description: List of multiplayer platforms
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "schemas.yml#/components/schemas/MultiplayerSummary"
+    ListServerSummariesOK:
+      description: List of server summaries
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "schemas.yml#/components/schemas/ServerSummary"
+    GetServerOK:
+      description: Get server
+      content:
+        application/json:
+          schema:
+            $ref: "schemas.yml#/components/schemas/DetailedServer"
+    ListServerStatisticsOK:
+      description: List of server statistics
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "schemas.yml#/components/schemas/ServerStatisticPoint"

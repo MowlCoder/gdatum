@@ -8,16 +8,15 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.opentelemetry.io/otel/trace"
-
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/otelogen"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type codeRecorder struct {
@@ -30,22 +29,22 @@ func (c *codeRecorder) WriteHeader(status int) {
 	c.ResponseWriter.WriteHeader(status)
 }
 
-// handleGetMultiplayersSummaryRequest handles getMultiplayersSummary operation.
+// handleGetServerRequest handles getServer operation.
 //
-// Get multiplayers summary.
+// Get server by host.
 //
-// GET /multiplayers/summary
-func (s *Server) handleGetMultiplayersSummaryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /multiplayer/{multiplayerName}/server/{serverHost}
+func (s *Server) handleGetServerRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getMultiplayersSummary"),
+		otelogen.OperationID("getServer"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayers/summary"),
+		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverHost}"),
 	}
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMultiplayersSummaryOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -86,7 +85,7 @@ func (s *Server) handleGetMultiplayersSummaryRequest(args [0]string, argsEscaped
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -100,11 +99,11 @@ func (s *Server) handleGetMultiplayersSummaryRequest(args [0]string, argsEscaped
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: GetMultiplayersSummaryOperation,
-			ID:   "getMultiplayersSummary",
+			Name: GetServerOperation,
+			ID:   "getServer",
 		}
 	)
-	params, err := decodeGetMultiplayersSummaryParams(args, argsEscaped, r)
+	params, err := decodeGetServerParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -115,169 +114,34 @@ func (s *Server) handleGetMultiplayersSummaryRequest(args [0]string, argsEscaped
 		return
 	}
 
-	var response []GetMultiplayersSummaryOKItem
+	var rawBody []byte
+
+	var response GetServerRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    GetMultiplayersSummaryOperation,
-			OperationSummary: "Get multiplayers summary",
-			OperationID:      "getMultiplayersSummary",
+			OperationName:    GetServerOperation,
+			OperationSummary: "Get server by host",
+			OperationID:      "getServer",
 			Body:             nil,
-			Params: middleware.Parameters{
-				{
-					Name: "order",
-					In:   "query",
-				}: params.Order,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = GetMultiplayersSummaryParams
-			Response = []GetMultiplayersSummaryOKItem
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackGetMultiplayersSummaryParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetMultiplayersSummary(ctx, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.GetMultiplayersSummary(ctx, params)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeGetMultiplayersSummaryResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleGetServerByIDRequest handles getServerByID operation.
-//
-// Get server by ID.
-//
-// GET /multiplayer/{multiplayerName}/server/{serverID}
-func (s *Server) handleGetServerByIDRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getServerByID"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverID}"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerByIDOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code >= 100 && code < 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: GetServerByIDOperation,
-			ID:   "getServerByID",
-		}
-	)
-	params, err := decodeGetServerByIDParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var response GetServerByIDRes
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    GetServerByIDOperation,
-			OperationSummary: "Get server by ID",
-			OperationID:      "getServerByID",
-			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "multiplayerName",
 					In:   "path",
 				}: params.MultiplayerName,
 				{
-					Name: "serverID",
+					Name: "serverHost",
 					In:   "path",
-				}: params.ServerID,
+				}: params.ServerHost,
 			},
 			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = GetServerByIDParams
-			Response = GetServerByIDRes
+			Params   = GetServerParams
+			Response = GetServerRes
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -286,14 +150,14 @@ func (s *Server) handleGetServerByIDRequest(args [2]string, argsEscaped bool, w 
 		](
 			m,
 			mreq,
-			unpackGetServerByIDParams,
+			unpackGetServerParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetServerByID(ctx, params)
+				response, err = s.h.GetServer(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetServerByID(ctx, params)
+		response, err = s.h.GetServer(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -301,7 +165,7 @@ func (s *Server) handleGetServerByIDRequest(args [2]string, argsEscaped bool, w 
 		return
 	}
 
-	if err := encodeGetServerByIDResponse(response, w, span); err != nil {
+	if err := encodeGetServerResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -310,22 +174,22 @@ func (s *Server) handleGetServerByIDRequest(args [2]string, argsEscaped bool, w 
 	}
 }
 
-// handleGetServerStatsByIDRequest handles getServerStatsByID operation.
+// handleListMultiplayerSummariesRequest handles listMultiplayerSummaries operation.
 //
-// Get server stats by ID.
+// Get a summary of multiplayer platforms.
 //
-// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
-func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /multiplayers/summaries
+func (s *Server) handleListMultiplayerSummariesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getServerStatsByID"),
+		otelogen.OperationID("listMultiplayerSummaries"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverID}/stats"),
+		semconv.HTTPRouteKey.String("/multiplayers/summaries"),
 	}
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerStatsByIDOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ListMultiplayerSummariesOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -366,7 +230,7 @@ func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -380,11 +244,11 @@ func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped boo
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: GetServerStatsByIDOperation,
-			ID:   "getServerStatsByID",
+			Name: ListMultiplayerSummariesOperation,
+			ID:   "listMultiplayerSummaries",
 		}
 	)
-	params, err := decodeGetServerStatsByIDParams(args, argsEscaped, r)
+	params, err := decodeListMultiplayerSummariesParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -395,43 +259,30 @@ func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped boo
 		return
 	}
 
-	var response GetServerStatsByIDRes
+	var rawBody []byte
+
+	var response []MultiplayerSummary
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    GetServerStatsByIDOperation,
-			OperationSummary: "Get server stats by ID",
-			OperationID:      "getServerStatsByID",
+			OperationName:    ListMultiplayerSummariesOperation,
+			OperationSummary: "Get a summary of multiplayer platforms",
+			OperationID:      "listMultiplayerSummaries",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
-					Name: "multiplayerName",
-					In:   "path",
-				}: params.MultiplayerName,
-				{
-					Name: "serverID",
-					In:   "path",
-				}: params.ServerID,
-				{
-					Name: "count",
+					Name: "playersOrderAsc",
 					In:   "query",
-				}: params.Count,
-				{
-					Name: "after",
-					In:   "query",
-				}: params.After,
-				{
-					Name: "order",
-					In:   "query",
-				}: params.Order,
+				}: params.PlayersOrderAsc,
 			},
 			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = GetServerStatsByIDParams
-			Response = GetServerStatsByIDRes
+			Params   = ListMultiplayerSummariesParams
+			Response = []MultiplayerSummary
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -440,14 +291,14 @@ func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped boo
 		](
 			m,
 			mreq,
-			unpackGetServerStatsByIDParams,
+			unpackListMultiplayerSummariesParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetServerStatsByID(ctx, params)
+				response, err = s.h.ListMultiplayerSummaries(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetServerStatsByID(ctx, params)
+		response, err = s.h.ListMultiplayerSummaries(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -455,7 +306,7 @@ func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped boo
 		return
 	}
 
-	if err := encodeGetServerStatsByIDResponse(response, w, span); err != nil {
+	if err := encodeListMultiplayerSummariesResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -464,22 +315,179 @@ func (s *Server) handleGetServerStatsByIDRequest(args [2]string, argsEscaped boo
 	}
 }
 
-// handleGetServersByMultiplayerRequest handles getServersByMultiplayer operation.
+// handleListServerStatisticsRequest handles listServerStatistics operation.
 //
-// Get servers by multiplayer.
+// Get server statistics by host.
+//
+// GET /multiplayer/{multiplayerName}/server/{serverHost}/statistics
+func (s *Server) handleListServerStatisticsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listServerStatistics"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverHost}/statistics"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ListServerStatisticsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListServerStatisticsOperation,
+			ID:   "listServerStatistics",
+		}
+	)
+	params, err := decodeListServerStatisticsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListServerStatisticsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListServerStatisticsOperation,
+			OperationSummary: "Get server statistics by host",
+			OperationID:      "listServerStatistics",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "multiplayerName",
+					In:   "path",
+				}: params.MultiplayerName,
+				{
+					Name: "serverHost",
+					In:   "path",
+				}: params.ServerHost,
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "precision",
+					In:   "query",
+				}: params.Precision,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListServerStatisticsParams
+			Response = ListServerStatisticsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListServerStatisticsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListServerStatistics(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListServerStatistics(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListServerStatisticsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListServerSummariesRequest handles listServerSummaries operation.
+//
+// List servers for a multiplayer platform.
 //
 // GET /multiplayer/{multiplayerName}/servers
-func (s *Server) handleGetServersByMultiplayerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleListServerSummariesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getServersByMultiplayer"),
+		otelogen.OperationID("listServerSummaries"),
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/servers"),
 	}
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServersByMultiplayerOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ListServerSummariesOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -520,7 +528,7 @@ func (s *Server) handleGetServersByMultiplayerRequest(args [1]string, argsEscape
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -534,11 +542,11 @@ func (s *Server) handleGetServersByMultiplayerRequest(args [1]string, argsEscape
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: GetServersByMultiplayerOperation,
-			ID:   "getServersByMultiplayer",
+			Name: ListServerSummariesOperation,
+			ID:   "listServerSummaries",
 		}
 	)
-	params, err := decodeGetServersByMultiplayerParams(args, argsEscaped, r)
+	params, err := decodeListServerSummariesParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -549,31 +557,46 @@ func (s *Server) handleGetServersByMultiplayerRequest(args [1]string, argsEscape
 		return
 	}
 
-	var response GetServersByMultiplayerRes
+	var rawBody []byte
+
+	var response ListServerSummariesRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    GetServersByMultiplayerOperation,
-			OperationSummary: "Get servers by multiplayer",
-			OperationID:      "getServersByMultiplayer",
+			OperationName:    ListServerSummariesOperation,
+			OperationSummary: "List servers for a multiplayer platform",
+			OperationID:      "listServerSummaries",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "multiplayerName",
 					In:   "path",
 				}: params.MultiplayerName,
 				{
-					Name: "count",
+					Name: "playersOrderAsc",
 					In:   "query",
-				}: params.Count,
+				}: params.PlayersOrderAsc,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+				{
+					Name: "offset",
+					In:   "query",
+				}: params.Offset,
+				{
+					Name: "includeOffline",
+					In:   "query",
+				}: params.IncludeOffline,
 			},
 			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = GetServersByMultiplayerParams
-			Response = GetServersByMultiplayerRes
+			Params   = ListServerSummariesParams
+			Response = ListServerSummariesRes
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -582,14 +605,14 @@ func (s *Server) handleGetServersByMultiplayerRequest(args [1]string, argsEscape
 		](
 			m,
 			mreq,
-			unpackGetServersByMultiplayerParams,
+			unpackListServerSummariesParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetServersByMultiplayer(ctx, params)
+				response, err = s.h.ListServerSummaries(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetServersByMultiplayer(ctx, params)
+		response, err = s.h.ListServerSummaries(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -597,7 +620,7 @@ func (s *Server) handleGetServersByMultiplayerRequest(args [1]string, argsEscape
 		return
 	}
 
-	if err := encodeGetServersByMultiplayerResponse(response, w, span); err != nil {
+	if err := encodeListServerSummariesResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

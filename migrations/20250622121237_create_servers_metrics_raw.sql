@@ -2,14 +2,14 @@
 -- +goose StatementBegin
 CREATE TABLE servers_metrics_raw
 (
-    multiplayer LowCardinality(String),
-    identifier  String,
-    name        String,
-    url         String,
-    gamemode    String,
-    lang        String,
-    players     UInt32,
-    timestamp   Datetime
+    multiplayer   LowCardinality(String),
+    host          String,
+    name          String,
+    url           String,
+    gamemode      String,
+    language      String,
+    players_count Int32,
+    collected_at  Datetime
 ) ENGINE = Null;
 -- +goose StatementEnd
 

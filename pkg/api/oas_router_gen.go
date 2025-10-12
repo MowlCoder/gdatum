@@ -102,7 +102,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 
-						// Param: "serverID"
+						// Param: "serverHost"
 						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
 						if idx < 0 {
@@ -114,7 +114,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						if len(elem) == 0 {
 							switch r.Method {
 							case "GET":
-								s.handleGetServerByIDRequest([2]string{
+								s.handleGetServerRequest([2]string{
 									args[0],
 									args[1],
 								}, elemIsEscaped, w, r)
@@ -125,9 +125,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							return
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/stats"
+						case '/': // Prefix: "/statistics"
 
-							if l := len("/stats"); len(elem) >= l && elem[0:l] == "/stats" {
+							if l := len("/statistics"); len(elem) >= l && elem[0:l] == "/statistics" {
 								elem = elem[l:]
 							} else {
 								break
@@ -137,7 +137,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								// Leaf node.
 								switch r.Method {
 								case "GET":
-									s.handleGetServerStatsByIDRequest([2]string{
+									s.handleListServerStatisticsRequest([2]string{
 										args[0],
 										args[1],
 									}, elemIsEscaped, w, r)
@@ -162,7 +162,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							// Leaf node.
 							switch r.Method {
 							case "GET":
-								s.handleGetServersByMultiplayerRequest([1]string{
+								s.handleListServerSummariesRequest([1]string{
 									args[0],
 								}, elemIsEscaped, w, r)
 							default:
@@ -176,9 +176,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				}
 
-			case 's': // Prefix: "s/summary"
+			case 's': // Prefix: "s/summaries"
 
-				if l := len("s/summary"); len(elem) >= l && elem[0:l] == "s/summary" {
+				if l := len("s/summaries"); len(elem) >= l && elem[0:l] == "s/summaries" {
 					elem = elem[l:]
 				} else {
 					break
@@ -188,7 +188,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					// Leaf node.
 					switch r.Method {
 					case "GET":
-						s.handleGetMultiplayersSummaryRequest([0]string{}, elemIsEscaped, w, r)
+						s.handleListMultiplayerSummariesRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, "GET")
 					}
@@ -331,7 +331,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 
-						// Param: "serverID"
+						// Param: "serverHost"
 						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
 						if idx < 0 {
@@ -343,10 +343,10 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						if len(elem) == 0 {
 							switch method {
 							case "GET":
-								r.name = GetServerByIDOperation
-								r.summary = "Get server by ID"
-								r.operationID = "getServerByID"
-								r.pathPattern = "/multiplayer/{multiplayerName}/server/{serverID}"
+								r.name = GetServerOperation
+								r.summary = "Get server by host"
+								r.operationID = "getServer"
+								r.pathPattern = "/multiplayer/{multiplayerName}/server/{serverHost}"
 								r.args = args
 								r.count = 2
 								return r, true
@@ -355,9 +355,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							}
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/stats"
+						case '/': // Prefix: "/statistics"
 
-							if l := len("/stats"); len(elem) >= l && elem[0:l] == "/stats" {
+							if l := len("/statistics"); len(elem) >= l && elem[0:l] == "/statistics" {
 								elem = elem[l:]
 							} else {
 								break
@@ -367,10 +367,10 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								// Leaf node.
 								switch method {
 								case "GET":
-									r.name = GetServerStatsByIDOperation
-									r.summary = "Get server stats by ID"
-									r.operationID = "getServerStatsByID"
-									r.pathPattern = "/multiplayer/{multiplayerName}/server/{serverID}/stats"
+									r.name = ListServerStatisticsOperation
+									r.summary = "Get server statistics by host"
+									r.operationID = "listServerStatistics"
+									r.pathPattern = "/multiplayer/{multiplayerName}/server/{serverHost}/statistics"
 									r.args = args
 									r.count = 2
 									return r, true
@@ -393,9 +393,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							// Leaf node.
 							switch method {
 							case "GET":
-								r.name = GetServersByMultiplayerOperation
-								r.summary = "Get servers by multiplayer"
-								r.operationID = "getServersByMultiplayer"
+								r.name = ListServerSummariesOperation
+								r.summary = "List servers for a multiplayer platform"
+								r.operationID = "listServerSummaries"
 								r.pathPattern = "/multiplayer/{multiplayerName}/servers"
 								r.args = args
 								r.count = 1
@@ -409,9 +409,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 				}
 
-			case 's': // Prefix: "s/summary"
+			case 's': // Prefix: "s/summaries"
 
-				if l := len("s/summary"); len(elem) >= l && elem[0:l] == "s/summary" {
+				if l := len("s/summaries"); len(elem) >= l && elem[0:l] == "s/summaries" {
 					elem = elem[l:]
 				} else {
 					break
@@ -421,10 +421,10 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					// Leaf node.
 					switch method {
 					case "GET":
-						r.name = GetMultiplayersSummaryOperation
-						r.summary = "Get multiplayers summary"
-						r.operationID = "getMultiplayersSummary"
-						r.pathPattern = "/multiplayers/summary"
+						r.name = ListMultiplayerSummariesOperation
+						r.summary = "Get a summary of multiplayer platforms"
+						r.operationID = "listMultiplayerSummaries"
+						r.pathPattern = "/multiplayers/summaries"
 						r.args = args
 						r.count = 0
 						return r, true

@@ -11,20 +11,23 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
+	chgo "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/EpicStep/gdatum"
+	clickhouseAdapter "github.com/EpicStep/gdatum/internal/adapters/clickhouse"
+	"github.com/EpicStep/gdatum/internal/collector"
 	"github.com/EpicStep/gdatum/internal/config"
 	"github.com/EpicStep/gdatum/internal/handlers/admin"
 	apiHandler "github.com/EpicStep/gdatum/internal/handlers/api"
-	"github.com/EpicStep/gdatum/internal/repository"
-	"github.com/EpicStep/gdatum/internal/stats"
+	clickhouseRepository "github.com/EpicStep/gdatum/internal/infrastructure/repository/clickhouse"
+	"github.com/EpicStep/gdatum/internal/infrastructure/server"
+	"github.com/EpicStep/gdatum/internal/infrastructure/worker"
+	"github.com/EpicStep/gdatum/internal/metrics"
 	"github.com/EpicStep/gdatum/internal/utils/migrations"
-	"github.com/EpicStep/gdatum/internal/utils/server"
-	"github.com/EpicStep/gdatum/internal/worker"
 	"github.com/EpicStep/gdatum/pkg/api"
 )
 
@@ -65,17 +68,17 @@ func run(logger *zap.Logger) error {
 		return nil
 	}
 
-	db, err := openDB(cfg.DatabaseDSN)
+	db, err := openDB(ctx, cfg.DatabaseDSN)
 	if err != nil {
 		return fmt.Errorf("openDB: %w", err)
 	}
 
-	repo := repository.New(db)
+	repo := clickhouseAdapter.New(clickhouseRepository.New(db))
 
-	statsHandler := stats.New(repo, logger)
+	statsHandler := collector.New(repo, metrics.NewCollectorMetrics(prometheus.DefaultRegisterer), logger)
 	statsCollectorWorker := worker.New("stats-collector", time.Hour, statsHandler.Handle, logger)
 
-	apiServer, err := api.NewServer(apiHandler.New())
+	apiServer, err := api.NewServer(apiHandler.New(repo))
 	if err != nil {
 		return fmt.Errorf("api.NewServer: %w", err)
 	}
@@ -101,15 +104,22 @@ func run(logger *zap.Logger) error {
 	return nil
 }
 
-func openDB(dsn string) (driver.Conn, error) {
-	dbOpts, err := clickhouse.ParseDSN(dsn)
+func openDB(ctx context.Context, dsn string) (driver.Conn, error) {
+	dbOpts, err := chgo.ParseDSN(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse.ParseDSN: %w", err)
 	}
 
-	db, err := clickhouse.Open(dbOpts)
+	db, err := chgo.Open(dbOpts)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse.Open: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err = db.Ping(ctx); err != nil {
+		return nil, fmt.Errorf("db.Ping: %w", err)
 	}
 
 	return db, nil

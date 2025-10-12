@@ -9,12 +9,11 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
-
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/validate"
 )
 
-func decodeGetMultiplayersSummaryResponse(resp *http.Response) (res []GetMultiplayersSummaryOKItem, _ error) {
+func decodeGetServerResponse(resp *http.Response) (res GetServerRes, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
@@ -30,11 +29,55 @@ func decodeGetMultiplayersSummaryResponse(resp *http.Response) (res []GetMultipl
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response []GetMultiplayersSummaryOKItem
+			var response DetailedServer
 			if err := func() error {
-				response = make([]GetMultiplayersSummaryOKItem, 0)
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 404:
+		// Code 404.
+		return &GetServerNotFound{}, nil
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
+func decodeListMultiplayerSummariesResponse(resp *http.Response) (res []MultiplayerSummary, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response []MultiplayerSummary
+			if err := func() error {
+				response = make([]MultiplayerSummary, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem GetMultiplayersSummaryOKItem
+					var elem MultiplayerSummary
 					if err := elem.Decode(d); err != nil {
 						return err
 					}
@@ -69,10 +112,10 @@ func decodeGetMultiplayersSummaryResponse(resp *http.Response) (res []GetMultipl
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	return res, validate.UnexpectedStatusCode(resp.StatusCode)
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
 }
 
-func decodeGetServerByIDResponse(resp *http.Response) (res GetServerByIDRes, _ error) {
+func decodeListServerStatisticsResponse(resp *http.Response) (res ListServerStatisticsRes, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
@@ -88,51 +131,7 @@ func decodeGetServerByIDResponse(resp *http.Response) (res GetServerByIDRes, _ e
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetServerByIDOK
-			if err := func() error {
-				if err := response.Decode(d); err != nil {
-					return err
-				}
-				if err := d.Skip(); err != io.EOF {
-					return errors.New("unexpected trailing data")
-				}
-				return nil
-			}(); err != nil {
-				err = &ogenerrors.DecodeBodyError{
-					ContentType: ct,
-					Body:        buf,
-					Err:         err,
-				}
-				return res, err
-			}
-			return &response, nil
-		default:
-			return res, validate.InvalidContentType(ct)
-		}
-	case 404:
-		// Code 404.
-		return &GetServerByIDNotFound{}, nil
-	}
-	return res, validate.UnexpectedStatusCode(resp.StatusCode)
-}
-
-func decodeGetServerStatsByIDResponse(resp *http.Response) (res GetServerStatsByIDRes, _ error) {
-	switch resp.StatusCode {
-	case 200:
-		// Code 200.
-		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-		if err != nil {
-			return res, errors.Wrap(err, "parse media type")
-		}
-		switch {
-		case ct == "application/json":
-			buf, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return res, err
-			}
-			d := jx.DecodeBytes(buf)
-
-			var response GetServerStatsByIDOKApplicationJSON
+			var response ListServerStatisticsOKApplicationJSON
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -164,12 +163,12 @@ func decodeGetServerStatsByIDResponse(resp *http.Response) (res GetServerStatsBy
 		}
 	case 404:
 		// Code 404.
-		return &GetServerStatsByIDNotFound{}, nil
+		return &ListServerStatisticsNotFound{}, nil
 	}
-	return res, validate.UnexpectedStatusCode(resp.StatusCode)
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
 }
 
-func decodeGetServersByMultiplayerResponse(resp *http.Response) (res GetServersByMultiplayerRes, _ error) {
+func decodeListServerSummariesResponse(resp *http.Response) (res ListServerSummariesRes, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
@@ -185,7 +184,7 @@ func decodeGetServersByMultiplayerResponse(resp *http.Response) (res GetServersB
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetServersByMultiplayerOKApplicationJSON
+			var response ListServerSummariesOKApplicationJSON
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -217,7 +216,7 @@ func decodeGetServersByMultiplayerResponse(resp *http.Response) (res GetServersB
 		}
 	case 404:
 		// Code 404.
-		return &GetServersByMultiplayerNotFound{}, nil
+		return &ListServerSummariesNotFound{}, nil
 	}
-	return res, validate.UnexpectedStatusCode(resp.StatusCode)
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
 }

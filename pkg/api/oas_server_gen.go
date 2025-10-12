@@ -8,30 +8,30 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
-	// GetMultiplayersSummary implements getMultiplayersSummary operation.
+	// GetServer implements getServer operation.
 	//
-	// Get multiplayers summary.
+	// Get server by host.
 	//
-	// GET /multiplayers/summary
-	GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) ([]GetMultiplayersSummaryOKItem, error)
-	// GetServerByID implements getServerByID operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverHost}
+	GetServer(ctx context.Context, params GetServerParams) (GetServerRes, error)
+	// ListMultiplayerSummaries implements listMultiplayerSummaries operation.
 	//
-	// Get server by ID.
+	// Get a summary of multiplayer platforms.
 	//
-	// GET /multiplayer/{multiplayerName}/server/{serverID}
-	GetServerByID(ctx context.Context, params GetServerByIDParams) (GetServerByIDRes, error)
-	// GetServerStatsByID implements getServerStatsByID operation.
+	// GET /multiplayers/summaries
+	ListMultiplayerSummaries(ctx context.Context, params ListMultiplayerSummariesParams) ([]MultiplayerSummary, error)
+	// ListServerStatistics implements listServerStatistics operation.
 	//
-	// Get server stats by ID.
+	// Get server statistics by host.
 	//
-	// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
-	GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (GetServerStatsByIDRes, error)
-	// GetServersByMultiplayer implements getServersByMultiplayer operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverHost}/statistics
+	ListServerStatistics(ctx context.Context, params ListServerStatisticsParams) (ListServerStatisticsRes, error)
+	// ListServerSummaries implements listServerSummaries operation.
 	//
-	// Get servers by multiplayer.
+	// List servers for a multiplayer platform.
 	//
 	// GET /multiplayer/{multiplayerName}/servers
-	GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (GetServersByMultiplayerRes, error)
+	ListServerSummaries(ctx context.Context, params ListServerSummariesParams) (ListServerSummariesRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

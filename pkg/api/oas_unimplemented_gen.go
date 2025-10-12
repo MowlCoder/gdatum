@@ -13,38 +13,38 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
-// GetMultiplayersSummary implements getMultiplayersSummary operation.
+// GetServer implements getServer operation.
 //
-// Get multiplayers summary.
+// Get server by host.
 //
-// GET /multiplayers/summary
-func (UnimplementedHandler) GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) (r []GetMultiplayersSummaryOKItem, _ error) {
+// GET /multiplayer/{multiplayerName}/server/{serverHost}
+func (UnimplementedHandler) GetServer(ctx context.Context, params GetServerParams) (r GetServerRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// GetServerByID implements getServerByID operation.
+// ListMultiplayerSummaries implements listMultiplayerSummaries operation.
 //
-// Get server by ID.
+// Get a summary of multiplayer platforms.
 //
-// GET /multiplayer/{multiplayerName}/server/{serverID}
-func (UnimplementedHandler) GetServerByID(ctx context.Context, params GetServerByIDParams) (r GetServerByIDRes, _ error) {
+// GET /multiplayers/summaries
+func (UnimplementedHandler) ListMultiplayerSummaries(ctx context.Context, params ListMultiplayerSummariesParams) (r []MultiplayerSummary, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// GetServerStatsByID implements getServerStatsByID operation.
+// ListServerStatistics implements listServerStatistics operation.
 //
-// Get server stats by ID.
+// Get server statistics by host.
 //
-// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
-func (UnimplementedHandler) GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (r GetServerStatsByIDRes, _ error) {
+// GET /multiplayer/{multiplayerName}/server/{serverHost}/statistics
+func (UnimplementedHandler) ListServerStatistics(ctx context.Context, params ListServerStatisticsParams) (r ListServerStatisticsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// GetServersByMultiplayer implements getServersByMultiplayer operation.
+// ListServerSummaries implements listServerSummaries operation.
 //
-// Get servers by multiplayer.
+// List servers for a multiplayer platform.
 //
 // GET /multiplayer/{multiplayerName}/servers
-func (UnimplementedHandler) GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (r GetServersByMultiplayerRes, _ error) {
+func (UnimplementedHandler) ListServerSummaries(ctx context.Context, params ListServerSummariesParams) (r ListServerSummariesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

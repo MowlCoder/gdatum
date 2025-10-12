@@ -1,7 +1,7 @@
 // Copyright 2025 Stepan Rabotkin.
 // SPDX-License-Identifier: Apache-2.0.
 
-package stats
+package collector
 
 import (
 	"context"
@@ -9,33 +9,32 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 
+	ragempAdapter "github.com/EpicStep/gdatum/internal/adapters/ragemp"
 	"github.com/EpicStep/gdatum/internal/domain"
-	ragempAdapter "github.com/EpicStep/gdatum/internal/external/adapters/ragemp"
-	ragempClient "github.com/EpicStep/gdatum/internal/external/clients/ragemp"
+	ragempClient "github.com/EpicStep/gdatum/internal/infrastructure/clients/ragemp"
 	backoffUtils "github.com/EpicStep/gdatum/internal/utils/backoff"
 )
 
-type repository interface {
-	InsertServers(ctx context.Context, servers []*domain.Server) error
+// Metrics is a metrics that Handler writes.
+type Metrics interface {
+	RecordServersCollected(multiplayer domain.Multiplayer, count int)
+	RecordCollectionError(multiplayer domain.Multiplayer)
+	RecordInsertError()
 }
 
 // Handler ...
 type Handler struct {
 	collectors []collectInstance
-	repo       repository
+	repo       domain.Repository
 
-	collectedGauge       *prometheus.GaugeVec
-	collectFailedCounter *prometheus.CounterVec
-	insertFailedCounter  prometheus.Counter
-
-	logger *zap.Logger
+	metrics Metrics
+	logger  *zap.Logger
 }
 
 // New ...
-func New(repo repository, logger *zap.Logger) *Handler {
+func New(repo domain.Repository, metrics Metrics, logger *zap.Logger) *Handler {
 	if logger == nil {
 		logger = zap.L()
 	}
@@ -51,26 +50,8 @@ func New(repo repository, logger *zap.Logger) *Handler {
 		},
 		repo: repo,
 
-		collectedGauge: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "stats_servers_collected_count",
-				Help: "Number of servers that have been collected",
-			},
-			[]string{"multiplayer"}),
-		collectFailedCounter: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "stats_collect_failed_total",
-				Help: "The total number of failed collects of server stats",
-			},
-			[]string{"multiplayer"}),
-		insertFailedCounter: prometheus.NewCounter(
-			prometheus.CounterOpts{
-				Name: "stats_insert_failed_total",
-				Help: "The total number of failed inserts to repository of server stats",
-			},
-		),
-
-		logger: logger,
+		metrics: metrics,
+		logger:  logger,
 	}
 }
 
@@ -102,7 +83,7 @@ func (h *Handler) Handle(ctx context.Context) error {
 		backoff.WithMaxTries(3),
 	)
 	if err != nil {
-		h.insertFailedCounter.Inc()
+		h.metrics.RecordInsertError()
 		return fmt.Errorf("backoff.Retry: %w", err)
 	}
 

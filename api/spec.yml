@@ -2,186 +2,143 @@ openapi: 3.0.2
 info:
   version: 1.0.0
   title: Gdatum API
+  description: A service for querying information about servers from different multiplayer games.
 servers:
-  - url: /v1
+  - url: 127.0.0.1:8080
+    description: Local development
 tags:
   - name: monitoring
-    description: Monitoring of game servers
+    description: Game server monitoring
 paths:
-  /multiplayers/summary:
+  /multiplayers/summaries:
     get:
       tags:
         - monitoring
-      summary: Get multiplayers summary
-      operationId: getMultiplayersSummary
+      summary: Get a summary of multiplayer platforms
+      operationId: listMultiplayerSummaries
       parameters:
-        - name: order
+        - name: playersOrderAsc
           in: query
-          description: Sort order by online
+          description: Sort order by current players count
           schema:
-            type: string
-            default: desc
-            enum:
-              - asc
-              - desc
+           type: boolean
       responses:
         '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required:
-                    - name
-                    - online
-                  properties:
-                    name:
-                      type: string
-                      description: Name of a multiplayer
-                    online:
-                      type: integer
-                      format: int64
+          $ref: "responses.yml#/components/responses/ListMultiplayerSummariesOK"
   '/multiplayer/{multiplayerName}/servers':
     get:
       tags:
         - monitoring
-      summary: Get servers by multiplayer
-      operationId: getServersByMultiplayer
+      summary: List servers for a multiplayer platform
+      operationId: listServerSummaries
       parameters:
         - name: multiplayerName
           in: path
-          description: Name of a multiplayer
+          description: Multiplayer platform name
           required: true
           schema:
             type: string
-        - name: count
+        - name: playersOrderAsc
           in: query
-          description: Count of return objects, -1 for all
+          description: Sort order by players count
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: Maximum number of items to return in the response. Used for pagination.
           schema:
             type: integer
             format: int32
-            default: -1
+            minimum: 1
+            maximum: 100
+            default: 100
+        - name: offset
+          in: query
+          description: Number of servers to skip before starting to collect the result set. Used for pagination.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 100
+        - name: includeOffline
+          in: query
+          description: Whether to include offline servers
+          schema:
+            type: boolean
       responses:
         '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required:
-                    - name
-                    - online
-                  properties:
-                    name:
-                      type: string
-                    online:
-                      type: integer
-                      format: int32
+          $ref: "responses.yml#/components/responses/ListServerSummariesOK"
         '404':
           description: Multiplayer not found
-  '/multiplayer/{multiplayerName}/server/{serverID}':
+  '/multiplayer/{multiplayerName}/server/{serverHost}':
     get:
       tags:
         - monitoring
-      summary: Get server by ID
-      operationId: getServerByID
+      summary: Get server by host
+      operationId: getServer
       parameters:
         - name: multiplayerName
           in: path
-          description: Name of a multiplayer
+          description: Multiplayer platform name
           required: true
           schema:
             type: string
-        - name: serverID
+        - name: serverHost
           in: path
-          description: ID of a server
+          description: Server host
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - name
-                properties:
-                  name:
-                    type: string
-                  url:
-                    type: string
-                  gamemode:
-                    type: string
-                  lang:
-                    type: string
+          $ref: "responses.yml#/components/responses/GetServerOK"
         '404':
           description: Server not found
-  '/multiplayer/{multiplayerName}/server/{serverID}/stats':
+  '/multiplayer/{multiplayerName}/server/{serverHost}/statistics':
     get:
       tags:
         - monitoring
-      summary: Get server stats by ID
-      operationId: getServerStatsByID
+      summary: Get server statistics by host
+      operationId: listServerStatistics
       parameters:
         - name: multiplayerName
           in: path
-          description: Name of a multiplayer
+          description: Multiplayer platform name
           required: true
           schema:
             type: string
-        - name: serverID
+        - name: serverHost
           in: path
-          description: ID of a server
+          description: Server host
           required: true
           schema:
             type: string
-        - name: count
+        - name: from
           in: query
-          description: Count of return stats
-          schema:
-            type: integer
-            format: int32
-            default: 720
-            maximum: 720
-        - name: after
-          in: query
-          description: Show stats after time
+          description: Start of the time range
+          required: true
           schema:
             type: string
             format: date-time
-        - name: order
+        - name: to
           in: query
-          description: Sort order by timestamp
+          description: End of the time range
+          required: true
           schema:
             type: string
-            default: desc
+            format: date-time
+        - name: precision
+          in: query
+          description: Output precision
+          schema:
+            type: string
+            default: perHour
             enum:
-              - asc
-              - desc
+              - perHour
+              - perDay
       responses:
         '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required:
-                    - timestamp
-                    - online
-                  properties:
-                    timestamp:
-                      type: string
-                      format: date-time
-                    online:
-                      type: integer
-                      format: int32
+          $ref: "responses.yml#/components/responses/ListServerStatisticsOK"
         '404':
           description: Server not found

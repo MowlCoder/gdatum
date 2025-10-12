@@ -9,16 +9,15 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/otelogen"
 	"github.com/ogen-go/ogen/uri"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func trimTrailingSlashes(u *url.URL) {
@@ -28,30 +27,30 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
-	// GetMultiplayersSummary invokes getMultiplayersSummary operation.
+	// GetServer invokes getServer operation.
 	//
-	// Get multiplayers summary.
+	// Get server by host.
 	//
-	// GET /multiplayers/summary
-	GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) ([]GetMultiplayersSummaryOKItem, error)
-	// GetServerByID invokes getServerByID operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverHost}
+	GetServer(ctx context.Context, params GetServerParams) (GetServerRes, error)
+	// ListMultiplayerSummaries invokes listMultiplayerSummaries operation.
 	//
-	// Get server by ID.
+	// Get a summary of multiplayer platforms.
 	//
-	// GET /multiplayer/{multiplayerName}/server/{serverID}
-	GetServerByID(ctx context.Context, params GetServerByIDParams) (GetServerByIDRes, error)
-	// GetServerStatsByID invokes getServerStatsByID operation.
+	// GET /multiplayers/summaries
+	ListMultiplayerSummaries(ctx context.Context, params ListMultiplayerSummariesParams) ([]MultiplayerSummary, error)
+	// ListServerStatistics invokes listServerStatistics operation.
 	//
-	// Get server stats by ID.
+	// Get server statistics by host.
 	//
-	// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
-	GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (GetServerStatsByIDRes, error)
-	// GetServersByMultiplayer invokes getServersByMultiplayer operation.
+	// GET /multiplayer/{multiplayerName}/server/{serverHost}/statistics
+	ListServerStatistics(ctx context.Context, params ListServerStatisticsParams) (ListServerStatisticsRes, error)
+	// ListServerSummaries invokes listServerSummaries operation.
 	//
-	// Get servers by multiplayer.
+	// List servers for a multiplayer platform.
 	//
 	// GET /multiplayer/{multiplayerName}/servers
-	GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (GetServersByMultiplayerRes, error)
+	ListServerSummaries(ctx context.Context, params ListServerSummariesParams) (ListServerSummariesRes, error)
 }
 
 // Client implements OAS client.
@@ -97,22 +96,23 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
-// GetMultiplayersSummary invokes getMultiplayersSummary operation.
+// GetServer invokes getServer operation.
 //
-// Get multiplayers summary.
+// Get server by host.
 //
-// GET /multiplayers/summary
-func (c *Client) GetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) ([]GetMultiplayersSummaryOKItem, error) {
-	res, err := c.sendGetMultiplayersSummary(ctx, params)
+// GET /multiplayer/{multiplayerName}/server/{serverHost}
+func (c *Client) GetServer(ctx context.Context, params GetServerParams) (GetServerRes, error) {
+	res, err := c.sendGetServer(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetMultiplayersSummary(ctx context.Context, params GetMultiplayersSummaryParams) (res []GetMultiplayersSummaryOKItem, err error) {
+func (c *Client) sendGetServer(ctx context.Context, params GetServerParams) (res GetServerRes, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getMultiplayersSummary"),
+		otelogen.OperationID("getServer"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayers/summary"),
+		semconv.URLTemplateKey.String("/multiplayer/{multiplayerName}/server/{serverHost}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -126,100 +126,7 @@ func (c *Client) sendGetMultiplayersSummary(ctx context.Context, params GetMulti
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetMultiplayersSummaryOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/multiplayers/summary"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "order" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "order",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Order.Get(); ok {
-				return e.EncodeValue(conv.StringToString(string(val)))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetMultiplayersSummaryResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GetServerByID invokes getServerByID operation.
-//
-// Get server by ID.
-//
-// GET /multiplayer/{multiplayerName}/server/{serverID}
-func (c *Client) GetServerByID(ctx context.Context, params GetServerByIDParams) (GetServerByIDRes, error) {
-	res, err := c.sendGetServerByID(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetServerByID(ctx context.Context, params GetServerByIDParams) (res GetServerByIDRes, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getServerByID"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverID}"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetServerByIDOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetServerOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -258,14 +165,14 @@ func (c *Client) sendGetServerByID(ctx context.Context, params GetServerByIDPara
 	}
 	pathParts[2] = "/server/"
 	{
-		// Encode "serverID" parameter.
+		// Encode "serverHost" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "serverID",
+			Param:   "serverHost",
 			Style:   uri.PathStyleSimple,
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.ServerID))
+			return e.EncodeValue(conv.StringToString(params.ServerHost))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -291,7 +198,7 @@ func (c *Client) sendGetServerByID(ctx context.Context, params GetServerByIDPara
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetServerByIDResponse(resp)
+	result, err := decodeGetServerResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -299,22 +206,23 @@ func (c *Client) sendGetServerByID(ctx context.Context, params GetServerByIDPara
 	return result, nil
 }
 
-// GetServerStatsByID invokes getServerStatsByID operation.
+// ListMultiplayerSummaries invokes listMultiplayerSummaries operation.
 //
-// Get server stats by ID.
+// Get a summary of multiplayer platforms.
 //
-// GET /multiplayer/{multiplayerName}/server/{serverID}/stats
-func (c *Client) GetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (GetServerStatsByIDRes, error) {
-	res, err := c.sendGetServerStatsByID(ctx, params)
+// GET /multiplayers/summaries
+func (c *Client) ListMultiplayerSummaries(ctx context.Context, params ListMultiplayerSummariesParams) ([]MultiplayerSummary, error) {
+	res, err := c.sendListMultiplayerSummaries(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerStatsByIDParams) (res GetServerStatsByIDRes, err error) {
+func (c *Client) sendListMultiplayerSummaries(ctx context.Context, params ListMultiplayerSummariesParams) (res []MultiplayerSummary, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getServerStatsByID"),
+		otelogen.OperationID("listMultiplayerSummaries"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/server/{serverID}/stats"),
+		semconv.URLTemplateKey.String("/multiplayers/summaries"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -328,7 +236,101 @@ func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerSta
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetServerStatsByIDOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, ListMultiplayerSummariesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/multiplayers/summaries"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "playersOrderAsc" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "playersOrderAsc",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PlayersOrderAsc.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeListMultiplayerSummariesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ListServerStatistics invokes listServerStatistics operation.
+//
+// Get server statistics by host.
+//
+// GET /multiplayer/{multiplayerName}/server/{serverHost}/statistics
+func (c *Client) ListServerStatistics(ctx context.Context, params ListServerStatisticsParams) (ListServerStatisticsRes, error) {
+	res, err := c.sendListServerStatistics(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendListServerStatistics(ctx context.Context, params ListServerStatisticsParams) (res ListServerStatisticsRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listServerStatistics"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/multiplayer/{multiplayerName}/server/{serverHost}/statistics"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListServerStatisticsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -367,14 +369,14 @@ func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerSta
 	}
 	pathParts[2] = "/server/"
 	{
-		// Encode "serverID" parameter.
+		// Encode "serverHost" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "serverID",
+			Param:   "serverHost",
 			Style:   uri.PathStyleSimple,
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.ServerID))
+			return e.EncodeValue(conv.StringToString(params.ServerHost))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -384,55 +386,49 @@ func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerSta
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/stats"
+	pathParts[4] = "/statistics"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
 	{
-		// Encode "count" parameter.
+		// Encode "from" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "count",
+			Name:    "from",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Count.Get(); ok {
-				return e.EncodeValue(conv.Int32ToString(val))
-			}
-			return nil
+			return e.EncodeValue(conv.DateTimeToString(params.From))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
 	{
-		// Encode "after" parameter.
+		// Encode "to" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "after",
+			Name:    "to",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.After.Get(); ok {
-				return e.EncodeValue(conv.DateTimeToString(val))
-			}
-			return nil
+			return e.EncodeValue(conv.DateTimeToString(params.To))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
 	{
-		// Encode "order" parameter.
+		// Encode "precision" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "order",
+			Name:    "precision",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Order.Get(); ok {
+			if val, ok := params.Precision.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
@@ -456,7 +452,7 @@ func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerSta
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetServerStatsByIDResponse(resp)
+	result, err := decodeListServerStatisticsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -464,22 +460,23 @@ func (c *Client) sendGetServerStatsByID(ctx context.Context, params GetServerSta
 	return result, nil
 }
 
-// GetServersByMultiplayer invokes getServersByMultiplayer operation.
+// ListServerSummaries invokes listServerSummaries operation.
 //
-// Get servers by multiplayer.
+// List servers for a multiplayer platform.
 //
 // GET /multiplayer/{multiplayerName}/servers
-func (c *Client) GetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (GetServersByMultiplayerRes, error) {
-	res, err := c.sendGetServersByMultiplayer(ctx, params)
+func (c *Client) ListServerSummaries(ctx context.Context, params ListServerSummariesParams) (ListServerSummariesRes, error) {
+	res, err := c.sendListServerSummaries(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetServersByMultiplayer(ctx context.Context, params GetServersByMultiplayerParams) (res GetServersByMultiplayerRes, err error) {
+func (c *Client) sendListServerSummaries(ctx context.Context, params ListServerSummariesParams) (res ListServerSummariesRes, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getServersByMultiplayer"),
+		otelogen.OperationID("listServerSummaries"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/multiplayer/{multiplayerName}/servers"),
+		semconv.URLTemplateKey.String("/multiplayer/{multiplayerName}/servers"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -493,7 +490,7 @@ func (c *Client) sendGetServersByMultiplayer(ctx context.Context, params GetServ
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetServersByMultiplayerOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, ListServerSummariesOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -536,16 +533,67 @@ func (c *Client) sendGetServersByMultiplayer(ctx context.Context, params GetServ
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
 	{
-		// Encode "count" parameter.
+		// Encode "playersOrderAsc" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "count",
+			Name:    "playersOrderAsc",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Count.Get(); ok {
+			if val, ok := params.PlayersOrderAsc.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
 				return e.EncodeValue(conv.Int32ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "offset" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "offset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Offset.Get(); ok {
+				return e.EncodeValue(conv.Int32ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "includeOffline" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "includeOffline",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IncludeOffline.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -568,7 +616,7 @@ func (c *Client) sendGetServersByMultiplayer(ctx context.Context, params GetServ
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetServersByMultiplayerResponse(resp)
+	result, err := decodeListServerSummariesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

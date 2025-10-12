@@ -1,4 +1,59 @@
-openapi: 3.0.2
 components:
   schemas:
     MultiplayerSummary:
+      type: object
+      required:
+        - name
+        - playersCount
+      properties:
+        name:
+          type: string
+          description: Multiplayer platform name
+        playersCount:
+          type: integer
+          format: int64
+    ServerSummary:
+      type: object
+      required:
+        - host
+        - name
+        - playersCount
+      properties:
+        host:
+          type: string
+        name:
+          type: string
+        playersCount:
+          type: integer
+          format: int32
+    DetailedServer:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        gamemode:
+          type: string
+        language:
+          type: string
+        playersCount:
+          type: integer
+          format: int64
+        collectedAt:
+          type: string
+          format: date-time
+    ServerStatisticPoint:
+      type: object
+      required:
+        - collectedAt
+        - playersCount
+      properties:
+        collectedAt:
+          type: string
+          format: date-time
+        playersCount:
+          type: integer
+          format: int32

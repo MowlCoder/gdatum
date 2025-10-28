@@ -11,8 +11,10 @@ import (
 	"github.com/cenkalti/backoff/v5"
 	"go.uber.org/zap"
 
+	altvAdapter "github.com/EpicStep/gdatum/internal/adapters/altv"
 	ragempAdapter "github.com/EpicStep/gdatum/internal/adapters/ragemp"
 	"github.com/EpicStep/gdatum/internal/domain"
+	altvClient "github.com/EpicStep/gdatum/internal/infrastructure/clients/altv"
 	ragempClient "github.com/EpicStep/gdatum/internal/infrastructure/clients/ragemp"
 	backoffUtils "github.com/EpicStep/gdatum/internal/utils/backoff"
 )
@@ -40,12 +42,17 @@ func New(repo domain.Repository, metrics Metrics, logger *zap.Logger) *Handler {
 	}
 
 	ragemp := ragempAdapter.New(ragempClient.New(ragempClient.NewOpts{})) // TODO: make general client to egress
+	altv := altvAdapter.New(altvClient.New(altvClient.NewOpts{}))
 
 	return &Handler{
 		collectors: []collectInstance{
 			{
 				Multiplayer: domain.MultiplayerRagemp,
 				Collect:     ragemp.Servers,
+			},
+			{
+				Multiplayer: domain.MultiplayerAltv,
+				Collect:     altv.Servers,
 			},
 		},
 		repo: repo,

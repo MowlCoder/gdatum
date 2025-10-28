@@ -12,9 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	altvAdapter "github.com/EpicStep/gdatum/internal/adapters/altv"
+	magesticAdapter "github.com/EpicStep/gdatum/internal/adapters/magestic"
 	ragempAdapter "github.com/EpicStep/gdatum/internal/adapters/ragemp"
 	"github.com/EpicStep/gdatum/internal/domain"
 	altvClient "github.com/EpicStep/gdatum/internal/infrastructure/clients/altv"
+	magesticClient "github.com/EpicStep/gdatum/internal/infrastructure/clients/magestic"
 	ragempClient "github.com/EpicStep/gdatum/internal/infrastructure/clients/ragemp"
 	backoffUtils "github.com/EpicStep/gdatum/internal/utils/backoff"
 )
@@ -43,6 +45,7 @@ func New(repo domain.Repository, metrics Metrics, logger *zap.Logger) *Handler {
 
 	ragemp := ragempAdapter.New(ragempClient.New(ragempClient.NewOpts{})) // TODO: make general client to egress
 	altv := altvAdapter.New(altvClient.New(altvClient.NewOpts{}))
+	magestic := magesticAdapter.New(magesticClient.New(magesticClient.NewOpts{}))
 
 	return &Handler{
 		collectors: []collectInstance{
@@ -53,6 +56,10 @@ func New(repo domain.Repository, metrics Metrics, logger *zap.Logger) *Handler {
 			{
 				Multiplayer: domain.MultiplayerAltv,
 				Collect:     altv.Servers,
+			},
+			{
+				Multiplayer: domain.MultiplayerMagestic,
+				Collect:     magestic.Servers,
 			},
 		},
 		repo: repo,

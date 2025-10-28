@@ -1,7 +1,7 @@
 // Copyright 2025 Stepan Rabotkin.
 // SPDX-License-Identifier: Apache-2.0.
 
-package altv
+package magestic
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	serverListURL = "https://altv.mp/api/servers"
+	serverListURL = "https://api.majestic-files.com/meta/servers"
 )
 
 // Client ...
@@ -39,7 +39,7 @@ func New(opts NewOpts) *Client {
 	}
 }
 
-// Servers returns altv servers.
+// Servers returns magestic servers.
 func (c *Client) Servers(ctx context.Context) (Servers, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, serverListURL, nil)
 	if err != nil {
@@ -53,12 +53,12 @@ func (c *Client) Servers(ctx context.Context) (Servers, error) {
 
 	defer resp.Body.Close() //nolint:errcheck
 
-	var respServers Servers
+	var responseBody getServersResponse
 
-	err = json.NewDecoder(resp.Body).Decode(&respServers)
+	err = json.NewDecoder(resp.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, fmt.Errorf("json.Decode: %w", err)
 	}
 
-	return respServers, nil
+	return responseBody.Result.Servers, nil
 }

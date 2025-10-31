@@ -39,7 +39,7 @@ func (a *Adapter) Servers(ctx context.Context, collectedAt time.Time) ([]domain.
 	return lo.Map(servers, func(server magestic.Server, _ int) domain.Server {
 		return domain.Server{
 			Multiplayer:  domain.MultiplayerMagestic,
-			Host:         server.Ip,
+			Host:         server.IP,
 			Name:         server.Name,
 			URL:          "https://majestic-rp.ru",
 			Gamemode:     "Roleplay",

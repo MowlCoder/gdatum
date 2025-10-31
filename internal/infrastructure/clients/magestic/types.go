@@ -4,12 +4,14 @@
 package magestic
 
 type getServersResponse struct {
-	Code   int  `json:"code"`
-	Status bool `json:"status"`
-	Result struct {
-		Ok      bool    `json:"ok"`
-		Servers Servers `json:"servers"`
-	}
+	Code   int              `json:"code"`
+	Status bool             `json:"status"`
+	Result getServersResult `json:"result"`
+}
+
+type getServersResult struct {
+	Ok      bool    `json:"ok"`
+	Servers Servers `json:"servers"`
 }
 
 // Servers is a magestic servers.
@@ -20,5 +22,5 @@ type Server struct {
 	Name    string `json:"name"`
 	Country string `json:"country"`
 	Players int32  `json:"players"`
-	Ip      string `json:"ip"`
+	IP      string `json:"ip"`
 }
